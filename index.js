@@ -42,3 +42,6 @@ app.listen(PORT, () => {
   console.log("✅ StayWoke backend is running!");
 });
 
+app.get("/", (req, res) => {
+  res.send("✅ StayWoke backend is running!");
+});
