@@ -10,7 +10,7 @@ dotenv.config();
 const app = express();
 
 // Middleware
-const allowedOrigins = [process.env.FRONTEND_URL, "http://localhost:3000"];
+const allowedOrigins = ["https://staywoke.vercel.app", "http://localhost:3000"];
 app.use(cors({
   origin: function(origin, callback) {
     // allow requests with no origin (like mobile apps or curl)
