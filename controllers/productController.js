@@ -1,5 +1,6 @@
+// controllers/productController.js
 import Product from "../models/ProductModel.js";
-import fs from "fs";
+import cloudinary from "../config/cloudinary.js";
 
 export const addProduct = async (req, res) => {
   try {
@@ -8,13 +9,25 @@ export const addProduct = async (req, res) => {
 
     const { name, shortDesc, longDesc, sizes, price } = req.body;
 
-    const image = req.files.image ? `uploads/products/${req.files.image[0].filename}` : null;
-
-    let gallery = [];
-    if (req.files.gallery) {
-      gallery = req.files.gallery.slice(0, 3).map(file => `uploads/products/${file.filename}`);
+    // Main image
+    let image = null;
+    if (req.files.image && req.files.image[0]) {
+      image = {
+        url: req.files.image[0].path,        // Cloudinary secure URL
+        public_id: req.files.image[0].filename // Cloudinary public_id
+      };
     }
 
+    // Gallery images
+    let gallery = [];
+    if (req.files.gallery) {
+      gallery = req.files.gallery.slice(0, 3).map(file => ({
+        url: file.path,
+        public_id: file.filename
+      }));
+    }
+
+    // Sizes as array
     const sizesArray = sizes ? (Array.isArray(sizes) ? sizes : sizes.split(",")) : [];
 
     const product = new Product({
@@ -28,7 +41,7 @@ export const addProduct = async (req, res) => {
     });
 
     const savedProduct = await product.save();
-    res.status(201).json({ message: "Product added", product: savedProduct });
+    res.status(201).json({ message: "✅ Product added", product: savedProduct });
 
   } catch (error) {
     console.error("=== Error Saving Product ===", error);
@@ -45,7 +58,6 @@ export const getProducts = async (req, res) => {
   }
 };
 
-// ✅ Get product by ID
 export const getProductById = async (req, res) => {
   try {
     const { id } = req.params;
@@ -67,27 +79,37 @@ export const updateProduct = async (req, res) => {
     const { name, shortDesc, longDesc, sizes, price } = req.body;
 
     const product = await Product.findById(id);
-    if (!product) return res.status(404).json({ message: "Product not found" });
+    if (!product) return res.status(404).json({ message: "❌ Product not found" });
 
     console.log("=== Incoming Body ===", req.body);
     console.log("=== Incoming Files ===", req.files);
 
-    // Update main image if new file uploaded
+    // Update main image
     if (req.files.image && req.files.image[0]) {
-      if (product.image && fs.existsSync(`.${product.image}`)) fs.unlinkSync(`.${product.image}`);
-      product.image = `uploads/products/${req.files.image[0].filename}`;
+      // Optionally: delete old image from Cloudinary
+      if (product.image?.public_id) {
+        await cloudinary.uploader.destroy(product.image.public_id);
+      }
+      product.image = {
+        url: req.files.image[0].path,
+        public_id: req.files.image[0].filename
+      };
     }
 
-    // Update gallery images if new files uploaded
+    // Update gallery
     if (req.files.gallery && req.files.gallery.length > 0) {
-      // Delete old gallery files
+      // Optionally: delete old gallery images from Cloudinary
       if (product.gallery && product.gallery.length > 0) {
-        product.gallery.forEach((imgPath) => {
-          if (fs.existsSync(`.${imgPath}`)) fs.unlinkSync(`.${imgPath}`);
-        });
+        for (let img of product.gallery) {
+          if (img.public_id) {
+            await cloudinary.uploader.destroy(img.public_id);
+          }
+        }
       }
-      // Assign new gallery files (up to 3)
-      product.gallery = req.files.gallery.slice(0, 3).map(file => `uploads/products/${file.filename}`);
+      product.gallery = req.files.gallery.slice(0, 3).map(file => ({
+        url: file.path,
+        public_id: file.filename
+      }));
     }
 
     // Update other fields
@@ -99,7 +121,7 @@ export const updateProduct = async (req, res) => {
 
     await product.save();
 
-    res.json({ message: "Product updated", product });
+    res.json({ message: "✅ Product updated", product });
   } catch (err) {
     console.error("=== Error Updating Product ===", err);
     res.status(500).json({ message: err.message });
@@ -110,12 +132,25 @@ export const deleteProduct = async (req, res) => {
   try {
     const { id } = req.params;
     const product = await Product.findById(id);
-    if (!product) return res.status(404).json({ message: "Product not found" });
+    if (!product) return res.status(404).json({ message: "❌ Product not found" });
 
-    if (product.image && fs.existsSync(product.image)) fs.unlinkSync(product.image);
+    // Delete main image
+    if (product.image?.public_id) {
+      await cloudinary.uploader.destroy(product.image.public_id);
+    }
+
+    // Delete gallery images
+    if (product.gallery && product.gallery.length > 0) {
+      for (let img of product.gallery) {
+        if (img.public_id) {
+          await cloudinary.uploader.destroy(img.public_id);
+        }
+      }
+    }
+
     await product.deleteOne();
 
-    res.json({ message: "Product deleted" });
+    res.json({ message: "✅ Product deleted" });
   } catch (err) {
     res.status(500).json({ message: err.message });
   }

@@ -7,8 +7,17 @@ const productSchema = new mongoose.Schema({
   longDesc: { type: String },
   sizes: [{ type: String }],
   price: { type: Number, required: true },
-  image: { type: String }, 
-  gallery: [{ type: String }], // new gallery field
+  image: {
+    url: { type: String },
+    public_id: { type: String }
+  },
+  gallery: [
+    {
+      url: { type: String },
+      public_id: { type: String }
+    }
+  ]
 }, { timestamps: true });
+
 
 export default mongoose.model("Product", productSchema, 'tbl_products');

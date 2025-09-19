@@ -1,22 +1,18 @@
-// middlewares/uploads.js
 import multer from "multer";
-import path from "path";
-import fs from "fs";
+import { CloudinaryStorage } from "multer-storage-cloudinary";
+import cloudinary from "../config/cloudinary.js";
 
-const storage = multer.diskStorage({
-  destination: (req, file, cb) => {
-    const uploadPath = "./uploads/products";
-    if (!fs.existsSync(uploadPath)) fs.mkdirSync(uploadPath, { recursive: true });
-    cb(null, uploadPath);
-  },
-  filename: (req, file, cb) => {
-    const ext = path.extname(file.originalname);
-    cb(null, Date.now() + "-" + file.fieldname + ext);
+// Configure storage
+const storage = new CloudinaryStorage({
+  cloudinary,
+  params: {
+    folder: "staywoke/products", // where files go in Cloudinary
+    allowed_formats: ["jpg", "jpeg", "png", "webp"],
   },
 });
 
-// use .fields() for multiple uploads
+// Multer middleware
 export const productUpload = multer({ storage }).fields([
-  { name: "image", maxCount: 1 },       // main image
-  { name: "gallery", maxCount: 3 },     // up to 3 gallery images
+  { name: "image", maxCount: 1 },   // single main image
+  { name: "gallery", maxCount: 3 }, // up to 3 gallery images
 ]);
